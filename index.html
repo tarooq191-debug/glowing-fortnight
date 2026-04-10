@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>🎁 نظام التهادي العائلي</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  body { 
+    font-family: 'Cairo', sans-serif; 
+    -webkit-tap-highlight-color: transparent; 
+  }
+  
+  /* خلفية حيوية متحركة ببطء */
+  .animated-bg {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+  }
+  @keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* تأثير الزجاج البلوري للكروت */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* حركات الدخول الناعمة */
+  .fade-in { animation: fadeInUp 0.5s ease-out forwards; }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body class="min-h-screen animated-bg text-slate-800">
+
+<div id="loginScreen" class="min-h-screen flex items-center justify-center p-4">
+  <div class="glass-card rounded-[2rem] p-10 w-full max-w-sm fade-in text-center">
+    <div class="mb-8">
+      <div class="text-7xl mb-4 animate-bounce" style="animation-duration: 2s;">🎁</div>
+      <h1 class="text-3xl font-black text-slate-800 tracking-tight">نظام التهادي</h1>
+      <p class="text-slate-500 font-bold text-sm mt-2 bg-slate-100/50 inline-block px-3 py-1 rounded-full">أدخل رمز الدخول الخاص بك</p>
+    </div>
+    
+    <input id="codeInput" type="password" placeholder="الرمز السري..."
+      class="w-full bg-white/70 border-2 border-white/80 rounded-2xl px-4 py-4 text-center text-xl font-bold placeholder-slate-400
+             focus:outline-none focus:border-indigo-400 focus:bg-white transition-all mb-4"/>
+             
+    <button onclick="login()"
+      class="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-90 text-white font-black text-lg py-4 rounded-2xl transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+      تسجيل الدخول 🚀
+    </button>
+    <p id="loginError" class="mt-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold text-center py-3 rounded-xl hidden"></p>
+  </div>
+</div>
+
+<div id="adminScreen" class="hidden min-h-screen p-4 max-w-2xl mx-auto fade-in flex-col justify-center">
+  <div class="glass-card rounded-[2rem] p-8 mt-6">
+    <div class="flex justify-between items-center mb-8 border-b border-slate-200/50 pb-4">
+      <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><span>🛡️</span> لوحة المشرف</h2>
+      <button onclick="logout()" class="bg-white/50 hover:bg-red-50 text-slate-500 hover:text-red-500 font-bold text-sm px-4 py-2 rounded-xl transition">خروج</button>
+    </div>
+
+    <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-[1.5rem] p-6 mb-6 border border-white text-center">
+      <h3 class="font-black text-indigo-900 text-xl mb-2 flex justify-center items-center gap-2"><span>🎲</span> إجراء القرعة</h3>
+      <p class="text-sm font-bold text-indigo-600/80 mb-5">خوارزمية Safe Shift تضمن عدم إهداء أي شخص لنفسه</p>
+      <button onclick="runDraw()"
+        class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-black px-8 py-3 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-1">
+        ابدأ القرعة الجديدة 🎉
+      </button>
+      <p id="drawMsg" class="mt-3 text-sm font-medium"></p>
+    </div>
+
+    <div id="assignmentsAdmin" class="hidden">
+      <h3 class="font-black text-slate-800 mb-4 text-lg">📋 نتائج القرعة الحالية</h3>
+      <div id="assignTable" class="space-y-3 bg-white/50 p-4 rounded-[1.5rem] border border-white"></div>
+    </div>
+  </div>
+</div>
+
+<div id="userScreen" class="hidden min-h-screen p-4 max-w-md mx-auto fade-in flex-col justify-center">
+  <div class="glass-card rounded-[2rem] p-8 mt-6">
+    <div class="flex justify-between items-center mb-8 border-b border-slate-200/50 pb-4">
+      <h2 id="userName" class="text-xl font-black text-indigo-900"></h2>
+      <button onclick="logout()" class="bg-white/50 hover:bg-red-50 text-slate-500 hover:text-red-500 font-bold text-sm px-4 py-2 rounded-xl transition">خروج</button>
+    </div>
+
+    <div id="assignmentBox" class="bg-gradient-to-b from-white to-slate-50 rounded-[1.5rem] p-8 mb-6 text-center shadow-md border border-white hidden">
+      <p class="text-slate-400 font-bold text-xs uppercase mb-2">ستهدي هذه المرة</p>
+      <div id="receiverDisplay" class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-pink-500 my-4 drop-shadow-sm"></div>
+      <button id="confirmBtn" onclick="confirmDelivery()"
+        class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-lg px-6 py-4 rounded-2xl transition-all transform hover:-translate-y-1 shadow-lg mt-4">
+        📦 تأكيد التسليم
+      </button>
+      <p id="confirmedBadge" class="hidden mt-4 text-emerald-600 font-black bg-emerald-50 py-3 rounded-xl border border-emerald-100">✔️ تم التسليم!</p>
+    </div>
+
+    <div id="noAssignment" class="hidden text-center bg-white/50 rounded-[1.5rem] py-10 mb-6 border border-white">
+      <div class="text-4xl mb-3 animate-pulse">⏳</div>
+      <p class="font-bold text-slate-500 text-sm">لم تُجرَ القرعة بعد، انتظر المشرف.</p>
+    </div>
+
+    <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-[1.5rem] p-6 border border-white">
+      <h3 class="font-black text-amber-900 mb-4 flex items-center gap-2"><span>💡</span> استشارة هدايا ذكية</h3>
+      <div class="flex gap-2 mb-4">
+        <select id="suggGender" class="flex-1 bg-white border border-amber-100 rounded-xl px-3 py-3 text-sm font-bold text-slate-700 outline-none">
+          <option value="male">ذكر</option>
+          <option value="female">أنثى</option>
+        </select>
+        <input id="suggAge" type="number" placeholder="العمر" value="25"
+          class="w-20 bg-white border border-amber-100 rounded-xl px-3 py-3 text-sm font-bold text-center text-slate-700 outline-none"/>
+        <button onclick="getSuggestions()"
+          class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-3 rounded-xl text-sm font-black transition shadow-md hover:shadow-lg transform hover:-translate-y-1">
+          اقترح
+        </button>
+      </div>
+      <ul id="suggList" class="space-y-2 text-sm text-amber-900 font-bold"></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== SUPABASE INIT =====================
+const SUPA_URL = 'https://zfulsalproplkmdndjfa.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmdWxzYWxwcm9wbGttZG5kamZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTQ3NDEsImV4cCI6MjA5MTM5MDc0MX0.2B7cGamM0ZWS5g8dKK8gVteolLJzmkQk7UEZncqfIVc';
+const { createClient } = supabase;
+const db = createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let currentAssignment = null;
+
+// ===================== LOGIN =====================
+async function login() {
+  const raw = document.getElementById('codeInput').value.trim();
+  if (!raw) return;
+
+  const { data, error } = await db
+    .from('users')
+    .select('*')
+    .ilike('code', raw)
+    .single();
+
+  if (error || !data) {
+    showError('❌ الرمز غير صحيح، تحقق وأعد المحاولة');
+    return;
+  }
+
+  currentUser = data;
+  document.getElementById('loginScreen').classList.add('hidden');
+
+  if (data.role === 'admin') {
+    showAdmin();
+  } else {
+    showUser();
+  }
+}
+
+document.getElementById('codeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') login();
+});
+
+function showError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+function logout() {
+  currentUser = null;
+  currentAssignment = null;
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('adminScreen').classList.add('hidden');
+  document.getElementById('userScreen').classList.add('hidden');
+  document.getElementById('codeInput').value = '';
+}
+
+// ===================== ADMIN =====================
+async function showAdmin() {
+  document.getElementById('adminScreen').classList.remove('hidden');
+  await loadAdminAssignments();
+}
+
+async function runDraw() {
+  const msg = document.getElementById('drawMsg');
+  msg.textContent = '⏳ جاري إجراء القرعة...';
+  msg.className = 'mt-3 text-sm font-medium text-gray-500';
+
+  const { data: users } = await db
+    .from('users')
+    .select('id, name')
+    .neq('role', 'admin');
+
+  if (!users || users.length < 2) {
+    msg.textContent = '❌ يلزم وجود مستخدمان على الأقل';
+    msg.className = 'mt-3 text-sm font-medium text-red-500';
+    return;
+  }
+
+  const shuffled = shuffle([...users]);
+  const n = shuffled.length;
+
+  const { data: draw } = await db
+    .from('draws')
+    .insert({ status: 'active' })
+    .select()
+    .single();
+
+  const assignments = shuffled.map((user, i) => ({
+    draw_id: draw.id,
+    giver_id: user.id,
+    receiver_id: shuffled[(i + 1) % n].id,
+    confirmed: false
+  }));
+
+  await db.from('assignments').insert(assignments);
+
+  msg.textContent = '✅ تمت القرعة بنجاح!';
+  msg.className = 'mt-3 text-sm font-medium text-green-600';
+  await loadAdminAssignments();
+}
+
+async function loadAdminAssignments() {
+  const { data: draws } = await db
+    .from('draws')
+    .select('id')
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (!draws || draws.length === 0) return;
+
+  const drawId = draws[0].id;
+  const { data: asgn } = await db
+    .from('assignments')
+    .select('giver_id, receiver_id, confirmed')
+    .eq('draw_id', drawId);
+
+  if (!asgn) return;
+
+  const { data: users } = await db.from('users').select('id, name');
+  const userMap = {};
+  users.forEach(u => userMap[u.id] = u.name);
+
+  const container = document.getElementById('assignTable');
+  container.innerHTML = '';
+  asgn.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'flex justify-between items-center bg-gray-50 px-4 py-2 rounded-lg text-sm';
+    div.innerHTML = `
+      <span class="font-medium">${userMap[a.giver_id] || '؟'}</span>
+      <span class="text-green-500 font-bold">← يهدي ←</span>
+      <span class="font-medium">${userMap[a.receiver_id] || '؟'}</span>
+      <span class="${a.confirmed ? 'text-green-500' : 'text-gray-300'}">${a.confirmed ? '✔️' : '○'}</span>
+    `;
+    container.appendChild(div);
+  });
+
+  document.getElementById('assignmentsAdmin').classList.remove('hidden');
+}
+
+// ===================== USER =====================
+async function showUser() {
+  document.getElementById('userScreen').classList.remove('hidden');
+  document.getElementById('userName').textContent = `👋 مرحباً ${currentUser.name}`;
+
+  const { data: draws } = await db
+    .from('draws')
+    .select('id')
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (!draws || draws.length === 0) {
+    document.getElementById('noAssignment').classList.remove('hidden');
+    return;
+  }
+
+  const drawId = draws[0].id;
+  const { data: asgn } = await db
+    .from('assignments')
+    .select('id, receiver_id, confirmed')
+    .eq('draw_id', drawId)
+    .eq('giver_id', currentUser.id)
+    .single();
+
+  if (!asgn) {
+    document.getElementById('noAssignment').classList.remove('hidden');
+    return;
+  }
+
+  currentAssignment = asgn;
+
+  const { data: receiver } = await db
+    .from('users')
+    .select('name, gender, age')
+    .eq('id', asgn.receiver_id)
+    .single();
+
+  document.getElementById('assignmentBox').classList.remove('hidden');
+  document.getElementById('receiverDisplay').textContent = receiver?.name || '؟';
+
+  if (receiver) {
+    document.getElementById('suggGender').value = receiver.gender || 'male';
+    document.getElementById('suggAge').value = receiver.age || 25;
+  }
+
+  if (asgn.confirmed) {
+    document.getElementById('confirmBtn').classList.add('hidden');
+    document.getElementById('confirmedBadge').classList.remove('hidden');
+  }
+}
+
+async function confirmDelivery() {
+  if (!currentAssignment) return;
+  await db
+    .from('assignments')
+    .update({ confirmed: true })
+    .eq('id', currentAssignment.id);
+
+  document.getElementById('confirmBtn').classList.add('hidden');
+  document.getElementById('confirmedBadge').classList.remove('hidden');
+}
+
+// ===================== GIFT SUGGESTIONS =====================
+const giftDB = {
+  male: {
+    young:  ['⌚ ساعة أنيقة', '🎮 بطاقة ألعاب رقمية', '👟 حذاء رياضي', '📚 كتاب تطوير ذات', '🎧 سماعات لاسلكية'],
+    mid:    ['👔 قميص رسمي فاخر', '🖊️ قلم فاخر', '💼 حقيبة عمل جلدية', '☕ ماكينة قهوة', '📖 كتاب أعمال ناجحة'],
+    senior: ['🌿 طقم عطور عود', '📿 سبحة فاخرة', '🍵 طقم شاي وقهوة', '🎋 نباتات منزلية', '🩴 شبشب جلد ناعم']
+  },
+  female: {
+    young:  ['💄 طقم مكياج', '👜 حقيبة يد صغيرة', '💍 إكسسوار عصري', '🌸 عطر خفيف', '🎀 قلادة ذهبية اللون'],
+    mid:    ['🧴 سيت عناية بالبشرة', '👒 وشاح فاخر', '🌺 باقة عطور مميزة', '🕯️ شمعة لافندر', '💅 طقم مناكير راقي'],
+    senior: ['🌹 عطر عود نسائي', '🧣 شال ناعم', '📿 مسبحة كريستال', '🍫 شوكولاتة فاخرة', '🌿 زيوت عطرية طبيعية']
+  }
+};
+
+function getSuggestions() {
+  const gender = document.getElementById('suggGender').value;
+  const age = parseInt(document.getElementById('suggAge').value) || 25;
+  const tier = age < 20 ? 'young' : age < 45 ? 'mid' : 'senior';
+  const list = giftDB[gender]?.[tier] || giftDB['male']['mid'];
+
+  const ul = document.getElementById('suggList');
+  ul.innerHTML = '';
+  list.forEach(g => {
+    const li = document.createElement('li');
+    li.className = 'bg-amber-100 rounded-lg px-3 py-2 text-sm';
+    li.textContent = g;
+    ul.appendChild(li);
+  });
+}
+
+// ===================== UTILS =====================
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+</script>
+</body>
+</html>
